@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 proteus_audio = "0.3.0"
-actix-web = "4"
+rocket = "0.5.1"

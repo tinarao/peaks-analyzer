@@ -1,21 +1,33 @@
-use actix_web::{get, web, App, HttpServer, Responder};
-use proteus_audio::peaks::get_peaks;
-use std::{fs::File, io::Write};
+use rocket::{form::Form, fs::TempFile};
 
-fn generate_peaks() {
-    let peaks = get_peaks("test_audio.mp3", false);
+#[macro_use]
+extern crate rocket;
 
-    let file = File::create("result.txt").unwrap();
-
-    let channel = &peaks[0];
-    for i in 0..channel.len() {
-        if i % 10 == 0 {
-            let peak = channel[i].0.to_string();
-            let _ = write!(&file, "{peak}\n");
-        };
-    }
+#[derive(FromForm)]
+struct Upload<'r> {
+    file: TempFile<'r>,
 }
 
-fn main() {
-    generate_peaks();
+#[get("/")]
+fn healthcheck() -> &'static str {
+    "ok"
+}
+
+#[post("/generate", format = "multipart/form-data", data = "<upload>")]
+async fn generate(mut upload: Form<Upload<'_>>) -> Result<(), std::io::Error> {
+    let filename = match upload.file.name() {
+        Some(v) => v,
+        None => "tmp1",
+    };
+
+    let filetype = upload.file.content_type().unwrap().extension().unwrap();
+
+    let fp = format!("tracks/{}.{}", filename, filetype);
+
+    upload.file.persist_to(fp).await
+}
+
+#[launch]
+fn rocket() -> _ {
+    rocket::build().mount("/", routes![healthcheck, generate])
 }

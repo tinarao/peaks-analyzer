@@ -1,3 +1,5 @@
 /target
 *.mp3
 result.txt
+test-client/
+tracks/
