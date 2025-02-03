@@ -13,7 +13,7 @@ fn healthcheck() -> &'static str {
     "ok"
 }
 
-#[post("/generate", format = "multipart/form-data", data = "<upload>")]
+#[post("/generate", data = "<upload>")]
 async fn generate(mut upload: Form<Upload<'_>>) -> Result<(), std::io::Error> {
     let filename = match upload.file.name() {
         Some(v) => v,
@@ -21,7 +21,6 @@ async fn generate(mut upload: Form<Upload<'_>>) -> Result<(), std::io::Error> {
     };
 
     let filetype = upload.file.content_type().unwrap().extension().unwrap();
-
     let fp = format!("tracks/{}.{}", filename, filetype);
 
     upload.file.persist_to(fp).await

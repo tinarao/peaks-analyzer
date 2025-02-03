@@ -1,0 +1,7 @@
+[default.limits]
+data-form="50 MiB"
+file = "50 MiB"
+"file/zip" = "50 MiB"
+forms = "20 MiB"
+json = "20 MiB"
+bytes = "20 MiB"
