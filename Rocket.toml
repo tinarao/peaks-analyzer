@@ -5,3 +5,6 @@ file = "50 MiB"
 forms = "20 MiB"
 json = "20 MiB"
 bytes = "20 MiB"
+
+[default.databases.sqlite_db]
+url = "db/db.sqlite"
