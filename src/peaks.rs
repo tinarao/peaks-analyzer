@@ -11,5 +11,5 @@ pub fn generate_peaks(file_path: String) -> Vec<f32> {
         };
     }
 
-    return result;
+    result
 }
