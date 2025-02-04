@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::peaks::generate_peaks;
 use serde::Serialize;
 use sqlx::sqlite::SqliteQueryResult;
@@ -77,7 +78,22 @@ impl Task {
     pub async fn complete(&self, pool: Arc<Pool<Sqlite>>) -> Result<(), String> {
         let peaks = generate_peaks(self.file_path.clone());
 
-        // let resp = reqwest::RequestBuilder().to(self.callback_api_url).send();
+        let mut peaks_map = HashMap::new();
+        peaks_map.insert("peaks", peaks);
+
+        let client = reqwest::Client::new();
+        let response = client.post(&self.callback_api_url)
+            .json(&peaks_map)
+            .send()
+            .await;
+
+        match response {
+            Ok(_) => {},
+            Err(e) => {
+                let err_text = format!("Не удалось сделать POST-запрос по callback_api_url: {}. Задача не будет удалена и будет исполняться заново при возможности.", &self.callback_api_url);
+                return Err(err_text);
+            }
+        }
 
         fs::remove_file(&self.file_path).await.unwrap();
         self.delete_row(pool).await
@@ -100,10 +116,10 @@ pub async fn manage_tasks(pool: Arc<Pool<Sqlite>>) {
     if tasks.len() > 0 {
         match tasks[0].complete(pool).await {
             Ok(_) => {
-                println!("Completed task #{}", tasks[0].id)
+                println!("Completed task #{}", tasks[0].id);
             }
             Err(e) => {
-                panic!("{}", e);
+                println!("{}", e);
             }
         }
     }
