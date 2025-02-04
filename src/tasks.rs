@@ -90,7 +90,9 @@ impl Task {
         match response {
             Ok(_) => {},
             Err(e) => {
+                println!("{}", e);
                 let err_text = format!("Не удалось сделать POST-запрос по callback_api_url: {}. Задача не будет удалена и будет исполняться заново при возможности.", &self.callback_api_url);
+
                 return Err(err_text);
             }
         }
