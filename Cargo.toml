@@ -4,14 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+axum = { version = "0.8.1", features = ["macros"] }
+axum_typed_multipart = "0.15.1"
 proteus_audio = "0.3.0"
-rocket = "0.5.1"
-
-[dependencies.sqlx]
-version = "0.7"
-default-features = false
-features = ["macros", "migrate"]
-
-[dependencies.rocket_db_pools]
-version = "0.1.0"
-features = ["sqlx_sqlite"]
+serde = { version = "1.0.217", features = ["derive"] }
+tempfile = "3.16.0"
+tokio = { version = "1.43.0", features = ["rt", "rt-multi-thread", "macros"] }
+tracing-subscriber = "0.3.19"
+tracing = "0.1.41"
