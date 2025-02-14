@@ -13,8 +13,12 @@
 ## About
 
 Микросервис на Rust, анализирующий аудиофайл и возвращающий его волновую форму в формате вектора с числами от -1 до 1.
+MP3 Only
 
 ## Usage
 
     git clone https://github.com/tinarao/peaks-analyzer.git
     cargo run
+
+## TODO
+- Вычисление длительности трека

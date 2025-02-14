@@ -1,33 +1,20 @@
 mod peaks;
 mod tasks;
 
-use crate::tasks::{manage_tasks, remove_finished_tasks, Task};
+use std::ops::Deref;
+use crate::tasks::{manage_tasks, Task};
 use axum::extract::State;
-use axum::response::IntoResponse;
 use axum::{
     extract::DefaultBodyLimit,
     http::StatusCode,
     routing::{get, post},
-    Router, ServiceExt,
+    Router,
 };
 use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
-use serde::Serialize;
-use sqlx::sqlite::SqlitePoolOptions;
-use sqlx::{Executor, Pool, Sqlite};
-use std::fs;
-use std::sync::Arc;
+use std::sync::{Arc};
+use tokio::sync::Mutex;
 use std::time::Duration;
 use tempfile::NamedTempFile;
-
-#[derive(Serialize)]
-struct PeaksResponse {
-    peaks: Vec<f32>,
-}
-
-#[derive(Serialize)]
-struct FailedResponse {
-    message: String,
-}
 
 #[derive(TryFromMultipart)]
 struct GenerateRequestDTO {
@@ -38,7 +25,7 @@ struct GenerateRequestDTO {
 
 #[derive(Clone)]
 struct AppState {
-    pool: Arc<Pool<Sqlite>>,
+    tasks: Arc<Mutex<Vec<Task>>>,
 }
 
 #[tokio::main]
@@ -48,38 +35,26 @@ async fn main() {
         .compact()
         .init();
 
-    let env = fs::read_to_string(".env").unwrap();
-    let (_, database_url) = env.split_once('=').unwrap();
-
-    let pool = match SqlitePoolOptions::new()
-        .max_connections(50)
-        .connect(&database_url)
-        .await
-    {
-        Ok(pool) => pool,
-        Err(e) => panic!("{}", e),
-    };
-
-    let arc = Arc::new(pool);
-    let state = AppState { pool: arc.clone() };
-
-    remove_finished_tasks(arc.clone()).await;
+    let tasks_vec = Vec::<Task>::new();
+    let tasks_mx = Mutex::new(tasks_vec);
+    let mut tasks = Arc::new(tasks_mx);
+    let state = AppState { tasks };
 
     let app = Router::new()
         .route("/", get(healthcheck))
         .route("/generate", post(generate))
         .layer(DefaultBodyLimit::max(1024 * 1024 * 64))
-        .with_state(state)
+        .with_state(state.clone())
         .into_make_service();
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:4200").await.unwrap();
 
     tokio::spawn(async move {
         loop {
-            let pool = arc.clone();
-            manage_tasks(pool).await;
+            println!("tasks len: {}", state.tasks.lock().await.len());
+            manage_tasks(state.tasks.lock().await).await;
 
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            tokio::time::sleep(Duration::from_secs(15)).await;
         }
     });
 
@@ -99,7 +74,7 @@ async fn generate(
     }): TypedMultipart<GenerateRequestDTO>,
 ) -> Result<StatusCode, StatusCode> {
     let file_name = file.metadata.file_name.unwrap_or("temp".to_string());
-    let path = format!("tracks/{}", file_name);
+    let path = format!("tracks/{}.mp3", file_name); // UUID ?
 
     match file.contents.persist(&path) {
         Ok(_) => {}
@@ -108,18 +83,8 @@ async fn generate(
         }
     }
 
-    let pool = state.pool;
-
-    let mut task = Task::new(path.clone(), callback_api_url);
-    match task.persist(pool).await {
-        Ok(id) => {
-            println!("Task persisted with id: {}", id);
-        }
-        Err(e) => {
-            println!("Failed to persist task: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    }
+    let task: Task = Task::new(path.clone(), callback_api_url);
+    state.tasks.lock().await.push(task);
 
     return Ok(StatusCode::OK);
 }
