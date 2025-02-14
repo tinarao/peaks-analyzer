@@ -17,11 +17,6 @@ COPY Cargo.toml Cargo.lock ./
 # Copy the source code
 COPY src ./src
 
-# Copy the .env file
-COPY .env .env
-
-COPY db db
-
 # Build the application in release mode
 RUN cargo +nightly build --release
 
@@ -38,9 +33,6 @@ RUN apt-get update && apt-get install -y \
 
 # Copy the compiled binary from the builder stage
 COPY --from=builder /rust-peaks-analyzer/target/release/rust-peaks-analyzer /usr/local/bin/rust-peaks-analyzer
-
-# Copy the .env file
-COPY .env /usr/local/bin/.env
 
 # Ensure the binary has execution permissions
 RUN chmod +x /usr/local/bin/rust-peaks-analyzer
